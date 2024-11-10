@@ -1,47 +1,39 @@
+// utils.go
 package main
 
 import (
 	"fmt"
-	"os"
 	"strconv"
 	"strings"
 
-	"github.com/alecthomas/chroma/quick"
+	"github.com/charmbracelet/glamour"
 )
 
-func printWithSyntaxHighlighting(content, responseColor string) {
-	lines := strings.Split(content, "\n")
-	inCodeBlock := false
-	codeLang := ""
-	codeBuffer := ""
-
+func printWithMarkdown(content, responseColor string) {
+	// Convert hex color code to ANSI escape code
 	colorCode := hexToANSI(responseColor)
 
-	for _, line := range lines {
-		if strings.HasPrefix(line, "```") {
-			if inCodeBlock {
-				inCodeBlock = false
-				quick.Highlight(os.Stdout, codeBuffer, codeLang, "terminal16m", "monokai")
-				codeBuffer = ""
-			} else {
-				inCodeBlock = true
-				codeLang = strings.TrimSpace(strings.TrimPrefix(line, "```"))
-				if codeLang == "" {
-					codeLang = "plaintext"
-				}
-			}
-			continue
-		}
-
-		if inCodeBlock {
-			codeBuffer += line + "\n"
-		} else {
-			fmt.Printf("%s%s\x1b[0m\n", colorCode, line)
-		}
+	// Prepare Glamour renderer with desired options
+	renderer, err := glamour.NewTermRenderer(
+		glamour.WithAutoStyle(),
+		glamour.WithWordWrap(80),
+	)
+	if err != nil {
+		fmt.Println("Error creating renderer:", err)
+		return
 	}
 
-	if inCodeBlock && codeBuffer != "" {
-		quick.Highlight(os.Stdout, codeBuffer, codeLang, "terminal16m", "monokai")
+	// Render the content
+	rendered, err := renderer.Render(content)
+	if err != nil {
+		fmt.Println("Error rendering content:", err)
+		return
+	}
+
+	// Apply the color to the rendered content
+	lines := strings.Split(rendered, "\n")
+	for _, line := range lines {
+		fmt.Printf("%s%s\x1b[0m\n", colorCode, line)
 	}
 }
 
