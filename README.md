@@ -1,142 +1,140 @@
 # IvyCLI
 
-IvyCLI is a command-line interface for interacting with OpenAI's GPT models. It allows you to send prompts and receive responses directly from your terminal, with support for conversation history, syntax highlighting, and customizable response colors.
+IvyCLI is a command-line tool for interacting with OpenAI's GPT models directly from your terminal. It supports conversation history, syntax highlighting, and customizable response colors.
 
 ## Features
 
-- **Interact with OpenAI's GPT models**: Use GPT-4 or any other specified model.
-- **Conversation history**: Optionally save and load encrypted conversation history.
-- **Syntax highlighting**: Display responses with syntax highlighting for code blocks.
-- **Customizable response color**: Set the color of the assistant's responses using hex color codes.
-- **Configurable via JSON file**: Easily adjust settings in a configuration file.
+- Interact with OpenAI's GPT models (e.g., GPT-4).
+- Encrypted conversation history.
+- Syntax highlighting for code blocks in responses.
+- Customizable response colors.
+- Configurable via a JSON file.
 
 ## Installation
 
-### Build from Source
+### Prerequisites
 
-1. **Clone the repository**:
+- Go (version 1.16 or newer).
 
-   ```bash
-   git clone https://github.com/yourusername/IvyCLI.git
-   ```
+### Clone the Repository
 
-2. **Install Dependencies**
-   
-   ```bash
-    go mod tidy
-    ```
+\`\`\`bash
+git clone https://github.com/yourusername/IvyCLI.git
+\`\`\`
 
-3. **Build the binary**:
+### Install Dependencies
 
-   ```bash
-   go build -o IvyCLI ./cmd
-   ```
+Navigate to the project directory and install the required Go packages:
 
-4. **Move the binary to a directory in your PATH**:
+\`\`\`bash
+cd IvyCLI
+go mod tidy
+\`\`\`
 
-   ```bash
-   sudo mv IvyCLI /usr/local/bin/
-   ```
+### Build the Binary
+
+Build the \`IvyCLI\` binary:
+
+\`\`\`bash
+go build -o IvyCLI
+\`\`\`
+
+### Move the Binary to Your PATH
+
+Move the binary to a directory included in your \`PATH\`, such as \`/usr/local/bin/\`:
+
+\`\`\`bash
+sudo mv IvyCLI /usr/local/bin/
+\`\`\`
 
 ## Configuration
 
-1. **Create a configuration file** (e.g., `config.json`):
+### Create a Configuration File
 
-   ```json
-   {
-       "model": "gpt-4o-turbo",
-       "system_prompt": "You are a technical assistant. Provide concise, accurate answers to technical questions, assuming the user has a strong background in technology. Focus on brevity and clarity.",
-       "response_color": "#1E90FF"
-   }
-   ```
+Create a \`config.json\` file in the project directory:
 
-2. **Move the configuration file to a config path**:
+\`\`\`json
+{
+    "model": "gpt-4",
+    "system_prompt": "You are a technical assistant. Provide concise, accurate answers to technical questions.",
+    "response_color": "#1E90FF",
+    "max_history_size": 10
+}
+\`\`\`
 
-   Create the configuration directory if it doesn't exist:
+### Move the Configuration File
 
-   ```bash
-   mkdir -p ~/.config/ivycli
-   ```
+Move the \`config.json\` file to the standard configuration directory:
 
-   Move the config file:
-
-   ```bash
-   mv config.json ~/.config/ivycli/
-   ```
+\`\`\`bash
+mkdir -p ~/.config/ivycli
+mv config.json ~/.config/ivycli/
+\`\`\`
 
 ## Usage
 
-1. **Set environment variables**:
+### Set Environment Variables
 
-   Add the API key and config path to your shell profile (`~/.bashrc` or `~/.zshrc`):
+Add the required environment variables:
 
-   ```bash
-   # For Bash
-   echo 'export OPENAI_API_KEY=your_openai_api_key' >> ~/.bashrc
-   echo 'export IVYCLI_CONFIG_PATH=~/.config/ivycli/config.json' >> ~/.bashrc
-   source ~/.bashrc
+- **OpenAI API Key**:
 
-   # For Zsh
-   echo 'export OPENAI_API_KEY=your_openai_api_key' >> ~/.zshrc
-   echo 'export IVYCLI_CONFIG_PATH=~/.config/ivycli/config.json' >> ~/.zshrc
-   source ~/.zshrc
-   ```
-   Replace `your_openai_api_key` with your actual API key. 
-   
-2. **Run IvyCLI**:
+  \`\`\`bash
+  export OPENAI_API_KEY="your_openai_api_key"
+  \`\`\`
 
-   ```bash
-   IvyCLI "Your prompt here"
-   ```
+- **Passphrase for Encryption**:
 
-   **Example**:
+  \`\`\`bash
+  export IVYCLI_PASSPHRASE="your_secure_passphrase"
+  \`\`\`
 
-   ```bash
-   IvyCLI "Explain the difference between concurrency and parallelism."
-   ```
+- **Configuration File Path**:
 
-3. **Use conversation history** (optional):
+  \`\`\`bash
+  export IVYCLI_CONFIG_PATH="$HOME/.config/ivycli/config.json"
+  \`\`\`
 
-   Include the `--history` flag to enable conversation history:
+Consider adding these to your shell profile (\`~/.bashrc\` or \`~/.zshrc\`) for persistence:
 
-   ```bash
-   IvyCLI --history "Your prompt here"
-   ```
+\`\`\`bash
+# Add these lines to your shell profile
+echo 'export OPENAI_API_KEY="your_openai_api_key"' >> ~/.bashrc
+echo 'export IVYCLI_PASSPHRASE="your_secure_passphrase"' >> ~/.bashrc
+echo 'export IVYCLI_CONFIG_PATH="$HOME/.config/ivycli/config.json"' >> ~/.bashrc
+source ~/.bashrc
+\`\`\`
 
-4. **Disable syntax highlighting** (optional):
+Replace \`"your_openai_api_key"\` and \`"your_secure_passphrase"\` with your actual API key and passphrase.
 
-   Use the `--no-color` flag to disable syntax highlighting and colored output:
+### Run IvyCLI
 
-   ```bash
-   IvyCLI --no-color "Your prompt here"
-   ```
+\`\`\`bash
+IvyCLI "Your prompt here"
+\`\`\`
+
+### Example
+
+\`\`\`bash
+IvyCLI "Explain the difference between concurrency and parallelism."
+\`\`\`
+
+### Reset Conversation History
+
+To reset the conversation history:
+
+\`\`\`bash
+IvyCLI --reset-history
+\`\`\`
+
+### Disable Conversation History
+
+To run without using the conversation history:
+
+\`\`\`bash
+IvyCLI --no-history "Your prompt here"
+\`\`\`
 
 ## Encryption of Conversation History
 
-IvyCLI uses encryption to securely store your conversation history. When you enable the `--history` flag, your conversations are saved to a file encrypted using AES-256-GCM. This ensures that sensitive information in your conversations remains confidential.
-
-**How it works**:
-
-- **Passphrase**: You are prompted to enter a passphrase when the application needs to encrypt or decrypt the conversation history.
-- **Key Derivation**: The passphrase is used to derive an encryption key using PBKDF2 with SHA-256.
-- **Encryption**: The conversation history is encrypted with AES-256-GCM before being saved to disk.
-- **Decryption**: When loading the conversation history, you are prompted for the passphrase to decrypt the data.
-
-**Why encryption was added**:
-
-- **Security**: To protect sensitive information that may be part of your conversation history.
-- **Privacy**: Ensures that only you can access your saved conversations by requiring a passphrase.
-
-## Best Practices
-
-- **Binary Location**: Place the `IvyCLI` binary in a directory included in your `PATH` environment variable, such as `/usr/local/bin/`, for easy access.
-- **Configuration File**: Store your `config.json` in the standard configuration directory `~/.config/ivycli/`.
-- **Environment Variables**: Set the necessary environment variables in your shell profile (e.g., `~/.bashrc` or `~/.zshrc`) for persistence.
-
-  ```bash
-  # Add these lines to your shell profile
-  export OPENAI_API_KEY=your_openai_api_key
-  export IVYCLI_CONFIG_PATH=~/.config/ivycli/config.json
-  ```
-
-- **Passphrase Management**: Use a strong, unique passphrase for encrypting your conversation history and keep it secure.
+IvyCLI encrypts your conversation history using AES-256-GCM with a passphrase-derived key. The passphrase is provided via the \`IVYCLI_PASSPHRASE\` environment variable.
