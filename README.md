@@ -102,6 +102,11 @@ Consider adding these to your shell profile (`~/.bashrc` or `~/.zshrc`) for pers
 echo 'export OPENAI_API_KEY="your_openai_api_key"' >> ~/.bashrc
 echo 'export IVYCLI_PASSPHRASE="your_secure_passphrase"' >> ~/.bashrc
 echo 'export IVYCLI_CONFIG_PATH="$HOME/.config/ivycli/config.json"' >> ~/.bashrc
+```
+
+To make the changes active, run:
+
+```
 source ~/.bashrc
 ```
 
