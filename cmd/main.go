@@ -23,21 +23,18 @@ func main() {
 	timeoutFlag := flag.Int("timeout", 30, "HTTP request timeout in seconds")
 	flag.Parse()
 
-	// Load API key from environment variable
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
 		fmt.Fprintln(os.Stderr, "Error: OPENAI_API_KEY must be set via environment variables.")
 		os.Exit(1)
 	}
 
-	// Load passphrase from environment variable
 	passphrase := os.Getenv("IVYCLI_PASSPHRASE")
 	if passphrase == "" {
 		fmt.Fprintln(os.Stderr, "Error: IVYCLI_PASSPHRASE must be set via environment variables.")
 		os.Exit(1)
 	}
 
-	// Check if config file is specified via command-line flag or environment variable
 	if *configFlag == "" {
 		*configFlag = os.Getenv("IVYCLI_CONFIG_PATH")
 	}
@@ -46,7 +43,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Load configurations from file
 	var model string
 	var systemPrompt string
 	var responseColor string
@@ -82,7 +78,6 @@ func main() {
 		maxHistorySize = 10 // Default max history size
 	}
 
-	// Handle reset history flag
 	if *resetHistoryFlag {
 		err := resetConversationHistory()
 		if err != nil {
@@ -93,7 +88,6 @@ func main() {
 		os.Exit(0)
 	}
 
-	// Parse command-line arguments or read from stdin
 	var prompt string
 	if flag.NArg() == 0 {
 		fmt.Println("Enter your message (end with Ctrl+D):")
@@ -111,10 +105,8 @@ func main() {
 		prompt = strings.Join(flag.Args(), " ")
 	}
 
-	// Initialize messages slice
 	var messages []map[string]string
 
-	// Include the system prompt if it's set
 	if systemPrompt != "" {
 		messages = append(messages, map[string]string{
 			"role":    "system",
@@ -122,7 +114,6 @@ func main() {
 		})
 	}
 
-	// Conversation history handling
 	if !*noHistoryFlag {
 		// Load conversation history
 		historyMessages, err := loadConversationHistory(passphrase)
@@ -136,13 +127,11 @@ func main() {
 		}
 	}
 
-	// Append the user's message
 	messages = append(messages, map[string]string{
 		"role":    "user",
 		"content": prompt,
 	})
 
-	// Create the request body
 	requestBody := map[string]interface{}{
 		"model":    model,
 		"messages": messages,
@@ -154,18 +143,15 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create the HTTP request
 	req, err := http.NewRequest("POST", openAIURL, bytes.NewBuffer(requestData))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error creating HTTP request:", err)
 		os.Exit(1)
 	}
 
-	// Set headers
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+apiKey)
 
-	// Send the request securely
 	client := &http.Client{
 		Timeout: time.Duration(*timeoutFlag) * time.Second,
 	}
@@ -188,7 +174,6 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Handle the response
 	var responseBody map[string]interface{}
 	err = json.NewDecoder(resp.Body).Decode(&responseBody)
 	if err != nil {
@@ -196,29 +181,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Extract the assistant's reply
 	if choices, ok := responseBody["choices"].([]interface{}); ok && len(choices) > 0 {
 		if message, ok := choices[0].(map[string]interface{})["message"].(map[string]interface{}); ok {
 			content := strings.TrimSpace(message["content"].(string))
 
-			// Insert a newline before printing the response
 			fmt.Println()
 
-			// Output formatting and syntax highlighting
 			if *noColorFlag {
 				fmt.Println(content)
 			} else {
 				printWithMarkdown(content, responseColor)
 			}
 
-			// Save conversation history if not disabled
 			if !*noHistoryFlag {
-				// Append the assistant's reply to messages
 				messages = append(messages, map[string]string{
 					"role":    "assistant",
 					"content": content,
 				})
-				// Remove the system prompt before saving history
 				var historyMessages []map[string]string
 				for _, msg := range messages {
 					if msg["role"] != "system" {
