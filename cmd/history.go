@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-func loadConversationHistory() ([]map[string]string, error) {
+func loadConversationHistory(passphrase string) ([]map[string]string, error) {
 	var messages []map[string]string
 
 	historyFile := getHistoryFilePath()
@@ -18,7 +18,7 @@ func loadConversationHistory() ([]map[string]string, error) {
 	}
 
 	// Decrypt the data
-	decryptedData, err := decrypt(data)
+	decryptedData, err := decrypt(data, passphrase)
 	if err != nil {
 		return nil, err
 	}
@@ -31,14 +31,14 @@ func loadConversationHistory() ([]map[string]string, error) {
 	return messages, nil
 }
 
-func saveConversationHistory(messages []map[string]string) error {
+func saveConversationHistory(messages []map[string]string, passphrase string) error {
 	data, err := json.Marshal(messages)
 	if err != nil {
 		return err
 	}
 
 	// Encrypt the data
-	encryptedData, err := encrypt(data)
+	encryptedData, err := encrypt(data, passphrase)
 	if err != nil {
 		return err
 	}
@@ -46,6 +46,15 @@ func saveConversationHistory(messages []map[string]string) error {
 	historyFile := getHistoryFilePath()
 	err = os.WriteFile(historyFile, encryptedData, 0600) // File permissions set to owner read/write
 	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func resetConversationHistory() error {
+	historyFile := getHistoryFilePath()
+	err := os.Remove(historyFile)
+	if err != nil && !os.IsNotExist(err) {
 		return err
 	}
 	return nil

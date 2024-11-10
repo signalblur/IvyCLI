@@ -1,4 +1,3 @@
-// main.go
 package main
 
 import (
@@ -18,7 +17,8 @@ const openAIURL = "https://api.openai.com/v1/chat/completions"
 func main() {
 	// Define command-line flags
 	configFlag := flag.String("config", "", "Path to configuration file")
-	historyFlag := flag.Bool("history", false, "Enable conversation history")
+	noHistoryFlag := flag.Bool("no-history", false, "Disable conversation history")
+	resetHistoryFlag := flag.Bool("reset-history", false, "Reset conversation history")
 	noColorFlag := flag.Bool("no-color", false, "Disable syntax highlighting")
 	timeoutFlag := flag.Int("timeout", 30, "HTTP request timeout in seconds")
 	flag.Parse()
@@ -27,6 +27,13 @@ func main() {
 	apiKey := os.Getenv("OPENAI_API_KEY")
 	if apiKey == "" {
 		fmt.Fprintln(os.Stderr, "Error: OPENAI_API_KEY must be set via environment variables.")
+		os.Exit(1)
+	}
+
+	// Load passphrase from environment variable
+	passphrase := os.Getenv("IVYCLI_PASSPHRASE")
+	if passphrase == "" {
+		fmt.Fprintln(os.Stderr, "Error: IVYCLI_PASSPHRASE must be set via environment variables.")
 		os.Exit(1)
 	}
 
@@ -43,26 +50,47 @@ func main() {
 	var model string
 	var systemPrompt string
 	var responseColor string
+	var maxHistorySize int
 
 	configData, err := os.ReadFile(*configFlag)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error reading config file:", err)
 		os.Exit(1)
 	}
-	var config map[string]string
+	var config map[string]interface{}
 	if err := json.Unmarshal(configData, &config); err != nil {
 		fmt.Fprintln(os.Stderr, "Error parsing config file:", err)
 		os.Exit(1)
 	}
-	model = config["model"]
-	systemPrompt = config["system_prompt"]
-	responseColor = config["response_color"]
-	if model == "" {
+	if val, ok := config["model"].(string); ok {
+		model = val
+	} else {
 		fmt.Fprintln(os.Stderr, "Error: Model must be specified in the config file.")
 		os.Exit(1)
 	}
-	if responseColor == "" {
+	if val, ok := config["system_prompt"].(string); ok {
+		systemPrompt = val
+	}
+	if val, ok := config["response_color"].(string); ok {
+		responseColor = val
+	} else {
 		responseColor = "#FFFFFF" // Default color (white)
+	}
+	if val, ok := config["max_history_size"].(float64); ok {
+		maxHistorySize = int(val)
+	} else {
+		maxHistorySize = 10 // Default max history size
+	}
+
+	// Handle reset history flag
+	if *resetHistoryFlag {
+		err := resetConversationHistory()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error resetting conversation history:", err)
+			os.Exit(1)
+		}
+		fmt.Println("Conversation history has been reset.")
+		os.Exit(0)
 	}
 
 	// Parse command-line arguments or read from stdin
@@ -95,12 +123,14 @@ func main() {
 	}
 
 	// Conversation history handling
-	if *historyFlag {
+	if !*noHistoryFlag {
 		// Load conversation history
-		historyMessages, err := loadConversationHistory()
+		historyMessages, err := loadConversationHistory(passphrase)
 		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error loading conversation history:", err)
-			// Continue without history
+			// If history file doesn't exist, continue without error
+			if !os.IsNotExist(err) {
+				fmt.Fprintln(os.Stderr, "Error loading conversation history:", err)
+			}
 		} else {
 			messages = append(messages, historyMessages...)
 		}
@@ -181,8 +211,8 @@ func main() {
 				printWithSyntaxHighlighting(content, responseColor)
 			}
 
-			// Save conversation history if enabled
-			if *historyFlag {
+			// Save conversation history if not disabled
+			if !*noHistoryFlag {
 				// Append the assistant's reply to messages
 				messages = append(messages, map[string]string{
 					"role":    "assistant",
@@ -195,7 +225,11 @@ func main() {
 						historyMessages = append(historyMessages, msg)
 					}
 				}
-				err = saveConversationHistory(historyMessages)
+				// Limit history size
+				if len(historyMessages) > maxHistorySize*2 {
+					historyMessages = historyMessages[len(historyMessages)-maxHistorySize*2:]
+				}
+				err = saveConversationHistory(historyMessages, passphrase)
 				if err != nil {
 					fmt.Fprintln(os.Stderr, "Error saving conversation history:", err)
 				}

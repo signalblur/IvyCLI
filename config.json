@@ -1,5 +1,6 @@
 {
     "model": "gpt-4-turbo",
     "system_prompt": "You are a technical assistant. Provide concise, accurate answers to technical questions, assuming the user has a strong background in technology. Focus on brevity and clarity.",
-    "response_color": "#1E90FF"
+    "response_color": "#1E90FF",
+    "max_history_size": 100
 }
