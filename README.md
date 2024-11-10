@@ -2,6 +2,8 @@
 
 IvyCLI is a command-line tool for interacting with OpenAI's GPT models directly from your terminal. It supports conversation history, syntax highlighting, and customizable response colors.
 
+<img width="1512" alt="ivy-cli-example" src="https://github.com/user-attachments/assets/5487f124-91d2-49f2-9cc9-24de80784a92">
+
 ## Features
 
 - Interact with OpenAI's GPT models (e.g., GPT-4).
