@@ -208,7 +208,7 @@ func main() {
 			if *noColorFlag {
 				fmt.Println(content)
 			} else {
-				printWithSyntaxHighlighting(content, responseColor)
+				printWithMarkdown(content, responseColor)
 			}
 
 			// Save conversation history if not disabled
