@@ -36,7 +36,7 @@ go mod tidy
 Build the `IvyCLI` binary:
 
 ```bash
-go build -o IvyCLI
+CGO_ENABLED=0 go build -o IvyCLI ./cmd
 ```
 
 ### Move the Binary to Your PATH
