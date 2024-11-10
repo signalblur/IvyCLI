@@ -19,7 +19,7 @@ IvyCLI is a command-line tool for interacting with OpenAI's GPT models directly 
 ### Clone the Repository
 
 ```bash
-git clone https://github.com/yourusername/IvyCLI.git
+git clone https://github.com/signalblur/IvyCLI.git
 ```
 
 ### Install Dependencies
