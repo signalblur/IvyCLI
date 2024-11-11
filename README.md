@@ -12,8 +12,8 @@ IvyCLI is a command-line tool for interacting with OpenAI's GPT models directly 
 
 ![Static Badge](https://img.shields.io/badge/mission:-a_simple_and_secure_way_to_interact_with_chatgpt_via_the_cli-purple)
 
-![GitHub last commit](https://img.shields.io/github/last-commit/signalblur/ivycli)
 ![GitHub top language](https://img.shields.io/github/languages/top/signalblur/ivycli)
+![GitHub last commit](https://img.shields.io/github/last-commit/signalblur/ivycli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
 
 </div>
