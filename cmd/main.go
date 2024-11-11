@@ -23,7 +23,7 @@ func main() {
 	resetHistoryFlag := flag.Bool("reset-history", false, "Reset conversation history")
 	noHistoryFlag := flag.Bool("no-history", false, "Disable conversation history")
 	replFlag := flag.Bool("repl", false, "Enter REPL mode for interactive conversation")
-	timeoutFlag := flag.Int("timeout", 30, "HTTP request timeout in seconds")
+	timeoutFlag := flag.Int("timeout", 90, "HTTP request timeout in seconds")
 	helpFlag := flag.Bool("help", false, "Display help information")
 
 	// Get user information and paths
