@@ -364,12 +364,7 @@ func setupShellAlias(aliasName string) error {
 
 	aliasFunction := fmt.Sprintf(`
 %s() {
-  local args=()
-  while [[ "$1" == -* ]]; do
-    args+=("$1")
-    shift
-  done
-  printf '%%s\n' "$*" | IvyCLI "${args[@]}"
+  IvyCLI "$@"
 }
 `, aliasName)
 
