@@ -1,0 +1,89 @@
+# .github/workflows/release.yml
+
+name: Build and Release IvyCLI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        goos: [linux, darwin, windows]
+        goarch: [amd64, arm64]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: '1.23.3' # Updated Go version to 1.23.3
+
+      - name: Install dependencies
+        run: go mod tidy
+
+      - name: Build binary
+        run: |
+          CGO_ENABLED=0 GOOS=${{ matrix.goos }} GOARCH=${{ matrix.goarch }} go build -o IvyCLI-${{ matrix.goos }}-${{ matrix.goarch }} ./cmd
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: IvyCLI-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: IvyCLI-${{ matrix.goos }}-${{ matrix.goarch }}
+
+  release:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: IvyCLI-linux-amd64
+          path: .
+      - uses: actions/download-artifact@v3
+        with:
+          name: IvyCLI-linux-arm64
+          path: .
+      - uses: actions/download-artifact@v3
+        with:
+          name: IvyCLI-darwin-amd64
+          path: .
+      - uses: actions/download-artifact@v3
+        with:
+          name: IvyCLI-darwin-arm64
+          path: .
+      - uses: actions/download-artifact@v3
+        with:
+          name: IvyCLI-windows-amd64
+          path: .
+      - uses: actions/download-artifact@v3
+        with:
+          name: IvyCLI-windows-arm64
+          path: .
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ github.ref_name }}
+          name: IvyCLI ${{ github.ref_name }}
+          body: |
+            ## IvyCLI Release ${{ github.ref_name }}
+            Binaries for Linux, macOS, and Windows in x64 and ARM architectures.
+          files: |
+            IvyCLI-linux-amd64
+            IvyCLI-linux-arm64
+            IvyCLI-darwin-amd64
+            IvyCLI-darwin-arm64
+            IvyCLI-windows-amd64.exe
+            IvyCLI-windows-arm64.exe
+          draft: false
+          prerelease: false
