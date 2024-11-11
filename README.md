@@ -32,7 +32,7 @@ IvyCLI is a command-line tool for interacting with OpenAI's GPT models directly 
 
 ### Prerequisites
 
-- Go (version 1.16 or newer).
+- Go (version 1.23.3 or newer).
 
 ### Clone the Repository
 
