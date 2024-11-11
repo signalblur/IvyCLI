@@ -8,6 +8,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/user"
+	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -15,11 +18,10 @@ import (
 const openAIURL = "https://api.openai.com/v1/chat/completions"
 
 func main() {
-	// Define command-line flags
 	configFlag := flag.String("config", "", "Path to configuration file")
-	noHistoryFlag := flag.Bool("no-history", false, "Disable conversation history")
+	noMarkdownFlag := flag.Bool("disable-markdown", false, "Disable markdown formatting")
 	resetHistoryFlag := flag.Bool("reset-history", false, "Reset conversation history")
-	noColorFlag := flag.Bool("no-color", false, "Disable syntax highlighting")
+	noHistoryFlag := flag.Bool("no-history", false, "Disable conversation history")
 	timeoutFlag := flag.Int("timeout", 30, "HTTP request timeout in seconds")
 	flag.Parse()
 
@@ -39,14 +41,26 @@ func main() {
 		*configFlag = os.Getenv("IVYCLI_CONFIG_PATH")
 	}
 	if *configFlag == "" {
-		fmt.Fprintln(os.Stderr, "Error: Config file must be specified via --config flag or IVYCLI_CONFIG_PATH environment variable.")
-		os.Exit(1)
+		usr, err := user.Current()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error getting current user:", err)
+			os.Exit(1)
+		}
+		*configFlag = filepath.Join(usr.HomeDir, ".config", "ivycli", "config.json")
+	}
+
+	if _, err := os.Stat(*configFlag); os.IsNotExist(err) {
+		err = firstTimeSetup(*configFlag)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error during first-time setup:", err)
+			os.Exit(1)
+		}
 	}
 
 	var model string
 	var systemPrompt string
-	var responseColor string
 	var maxHistorySize int
+	var enableMarkdown bool
 
 	configData, err := os.ReadFile(*configFlag)
 	if err != nil {
@@ -67,15 +81,19 @@ func main() {
 	if val, ok := config["system_prompt"].(string); ok {
 		systemPrompt = val
 	}
-	if val, ok := config["response_color"].(string); ok {
-		responseColor = val
-	} else {
-		responseColor = "#FFFFFF" // Default color (white)
-	}
 	if val, ok := config["max_history_size"].(float64); ok {
 		maxHistorySize = int(val)
 	} else {
-		maxHistorySize = 10 // Default max history size
+		maxHistorySize = 10
+	}
+	if val, ok := config["enable_markdown"].(bool); ok {
+		enableMarkdown = val
+	} else {
+		enableMarkdown = true
+	}
+
+	if *noMarkdownFlag {
+		enableMarkdown = false
 	}
 
 	if *resetHistoryFlag {
@@ -90,17 +108,22 @@ func main() {
 
 	var prompt string
 	if flag.NArg() == 0 {
-		fmt.Println("Enter your message (end with Ctrl+D):")
-		scanner := bufio.NewScanner(os.Stdin)
-		var lines []string
-		for scanner.Scan() {
-			lines = append(lines, scanner.Text())
-		}
-		if err := scanner.Err(); err != nil {
-			fmt.Fprintln(os.Stderr, "Error reading standard input:", err)
+		stat, _ := os.Stdin.Stat()
+		if (stat.Mode() & os.ModeCharDevice) == 0 {
+			scanner := bufio.NewScanner(os.Stdin)
+			var lines []string
+			for scanner.Scan() {
+				lines = append(lines, scanner.Text())
+			}
+			if err := scanner.Err(); err != nil {
+				fmt.Fprintln(os.Stderr, "Error reading standard input:", err)
+				os.Exit(1)
+			}
+			prompt = strings.Join(lines, "\n")
+		} else {
+			fmt.Fprintln(os.Stderr, "Error: No prompt provided.")
 			os.Exit(1)
 		}
-		prompt = strings.Join(lines, "\n")
 	} else {
 		prompt = strings.Join(flag.Args(), " ")
 	}
@@ -115,10 +138,8 @@ func main() {
 	}
 
 	if !*noHistoryFlag {
-		// Load conversation history
 		historyMessages, err := loadConversationHistory(passphrase)
 		if err != nil {
-			// If history file doesn't exist, continue without error
 			if !os.IsNotExist(err) {
 				fmt.Fprintln(os.Stderr, "Error loading conversation history:", err)
 			}
@@ -185,12 +206,10 @@ func main() {
 		if message, ok := choices[0].(map[string]interface{})["message"].(map[string]interface{}); ok {
 			content := strings.TrimSpace(message["content"].(string))
 
-			fmt.Println()
-
-			if *noColorFlag {
-				fmt.Println(content)
+			if enableMarkdown {
+				printWithMarkdown(content)
 			} else {
-				printWithMarkdown(content, responseColor)
+				fmt.Println(content)
 			}
 
 			if !*noHistoryFlag {
@@ -204,7 +223,6 @@ func main() {
 						historyMessages = append(historyMessages, msg)
 					}
 				}
-				// Limit history size
 				if len(historyMessages) > maxHistorySize*2 {
 					historyMessages = historyMessages[len(historyMessages)-maxHistorySize*2:]
 				}
@@ -220,4 +238,79 @@ func main() {
 
 	fmt.Fprintln(os.Stderr, "Error: Unexpected response format.")
 	os.Exit(1)
+}
+
+func firstTimeSetup(configPath string) error {
+	fmt.Println("IvyCLI First-Time Setup")
+
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Enter the OpenAI model to use (e.g., gpt-4): ")
+	model, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	model = strings.TrimSpace(model)
+	if model == "" {
+		model = "gpt-4"
+	}
+
+	fmt.Print("Enter a system prompt (optional): ")
+	systemPrompt, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	systemPrompt = strings.TrimSpace(systemPrompt)
+
+	fmt.Print("Enter maximum conversation history size (default 10): ")
+	maxHistorySizeStr, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	maxHistorySizeStr = strings.TrimSpace(maxHistorySizeStr)
+	maxHistorySize := 10
+	if maxHistorySizeStr != "" {
+		maxHistorySize, err = strconv.Atoi(maxHistorySizeStr)
+		if err != nil {
+			fmt.Println("Invalid number, using default 10.")
+			maxHistorySize = 10
+		}
+	}
+
+	fmt.Print("Enable markdown formatting? (yes/no, default yes): ")
+	enableMarkdownStr, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	enableMarkdownStr = strings.TrimSpace(strings.ToLower(enableMarkdownStr))
+	enableMarkdown := true
+	if enableMarkdownStr == "no" || enableMarkdownStr == "n" {
+		enableMarkdown = false
+	}
+
+	config := map[string]interface{}{
+		"model":            model,
+		"system_prompt":    systemPrompt,
+		"max_history_size": maxHistorySize,
+		"enable_markdown":  enableMarkdown,
+	}
+
+	configDir := filepath.Dir(configPath)
+	err = os.MkdirAll(configDir, 0700)
+	if err != nil {
+		return err
+	}
+
+	configData, err := json.MarshalIndent(config, "", "    ")
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(configPath, configData, 0600)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println("Configuration saved to", configPath)
+	return nil
 }

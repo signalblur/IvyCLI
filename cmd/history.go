@@ -17,7 +17,6 @@ func loadConversationHistory(passphrase string) ([]map[string]string, error) {
 		return nil, err
 	}
 
-	// Decrypt the data
 	decryptedData, err := decrypt(data, passphrase)
 	if err != nil {
 		return nil, err
@@ -37,14 +36,13 @@ func saveConversationHistory(messages []map[string]string, passphrase string) er
 		return err
 	}
 
-	// Encrypt the data
 	encryptedData, err := encrypt(data, passphrase)
 	if err != nil {
 		return err
 	}
 
 	historyFile := getHistoryFilePath()
-	err = os.WriteFile(historyFile, encryptedData, 0600) // File permissions set to owner read/write
+	err = os.WriteFile(historyFile, encryptedData, 0600)
 	if err != nil {
 		return err
 	}
@@ -67,7 +65,11 @@ func getHistoryFilePath() string {
 		os.Exit(1)
 	}
 	configDir := filepath.Join(usr.HomeDir, ".config", "ivycli")
-	os.MkdirAll(configDir, 0700) // Ensure directory exists with restricted permissions
+	err = os.MkdirAll(configDir, 0700)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error creating config directory:", err)
+		os.Exit(1)
+	}
 	historyFile := filepath.Join(configDir, "history.enc")
 	return historyFile
 }
