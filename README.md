@@ -1,16 +1,16 @@
 # IvyCLI
 
-IvyCLI is a command-line tool for interacting with OpenAI's GPT models directly from your terminal. It supports conversation history, syntax highlighting, and customizable response colors.
+IvyCLI is a command-line tool for interacting with OpenAI's GPT models directly from your terminal. It supports encrypted conversation history, markdown formatting for responses, and a REPL mode for interactive use.
 
 <img width="1512" alt="ivy-cli-example" src="https://github.com/user-attachments/assets/5487f124-91d2-49f2-9cc9-24de80784a92">
 
 ## Features
 
 - Interact with OpenAI's GPT models (e.g., GPT-4).
-- Encrypted conversation history.
-- Syntax highlighting for code blocks in responses.
-- Customizable response colors.
-- Configurable via a JSON file.
+- Encrypted conversation history using AES-256-GCM.
+- Markdown formatting for responses.
+- REPL mode for interactive use.
+- Configurable via a JSON file in `~/.config/ivycli/`.
 
 ## Installation
 
@@ -20,128 +20,141 @@ IvyCLI is a command-line tool for interacting with OpenAI's GPT models directly 
 
 ### Clone the Repository
 
-```bash
+\`\`\`bash
 git clone https://github.com/signalblur/IvyCLI.git
-```
+\`\`\`
 
 ### Install Dependencies
 
 Navigate to the project directory and install the required Go packages:
 
-```bash
+\`\`\`bash
 cd IvyCLI
 go mod tidy
-```
+\`\`\`
 
 ### Build the Binary
 
 Build the `IvyCLI` binary:
 
-```bash
+\`\`\`bash
 CGO_ENABLED=0 go build -o IvyCLI ./cmd
-```
+\`\`\`
 
 ### Move the Binary to Your PATH
 
 Move the binary to a directory included in your `PATH`, such as `/usr/local/bin/`:
 
-```bash
+\`\`\`bash
 sudo mv IvyCLI /usr/local/bin/
-```
+\`\`\`
+
+## First-Time Setup
+
+On the first run, if the configuration directory `~/.config/ivycli/` does not exist, IvyCLI will guide you through a setup process:
+
+- It will prompt you for:
+  - OpenAI model (default: `gpt-4`).
+  - System prompt (optional, with a default prompt provided).
+  - Maximum history size (default: 10).
+  - Whether to enable markdown formatting (default: yes).
+- It will then set the environment variables for the OpenAI API key and encryption passphrase.
 
 ## Configuration
 
-### Create a Configuration File
+The configuration file is located at `~/.config/ivycli/config.json`. Example:
 
-Create a `config.json` file in the project directory:
-
-```json
+\`\`\`json
 {
     "model": "gpt-4",
     "system_prompt": "You are a technical assistant. Provide concise, accurate answers to technical questions.",
-    "response_color": "#1E90FF",
-    "max_history_size": 10
+    "max_history_size": 10,
+    "enable_markdown": true
 }
-```
-
-### Move the Configuration File
-
-Move the `config.json` file to the standard configuration directory:
-
-```bash
-mkdir -p ~/.config/ivycli
-mv config.json ~/.config/ivycli/
-```
+\`\`\`
 
 ## Usage
 
-### Set Environment Variables
-
-Add the required environment variables:
-
-- **OpenAI API Key**:
-
-  ```bash
-  export OPENAI_API_KEY="your_openai_api_key"
-  ```
-
-- **Passphrase for Encryption**:
-
-  ```bash
-  export IVYCLI_PASSPHRASE="your_secure_passphrase"
-  ```
-
-- **Configuration File Path**:
-
-  ```bash
-  export IVYCLI_CONFIG_PATH="$HOME/.config/ivycli/config.json"
-  ```
-
-Consider adding these to your shell profile (`~/.bashrc` or `~/.zshrc`) for persistence:
-
-```bash
-# Add these lines to your shell profile
-echo 'export OPENAI_API_KEY="your_openai_api_key"' >> ~/.bashrc
-echo 'export IVYCLI_PASSPHRASE="your_secure_passphrase"' >> ~/.bashrc
-echo 'export IVYCLI_CONFIG_PATH="$HOME/.config/ivycli/config.json"' >> ~/.bashrc
-```
-
-To make the changes active, run:
-
-```
-source ~/.bashrc
-```
-
-Replace `"your_openai_api_key"` and `"your_secure_passphrase"` with your actual API key and passphrase.
-
 ### Run IvyCLI
 
-```bash
+\`\`\`bash
 IvyCLI "Your prompt here"
-```
+\`\`\`
 
 ### Example
 
-```bash
+\`\`\`bash
 IvyCLI "Explain the difference between concurrency and parallelism."
-```
+\`\`\`
+
+### Enter REPL Mode
+
+For interactive conversations, use the REPL mode:
+
+\`\`\`bash
+IvyCLI --repl
+\`\`\`
+
+Press `Ctrl+C` to exit REPL mode.
 
 ### Reset Conversation History
 
 To reset the conversation history:
 
-```bash
+\`\`\`bash
 IvyCLI --reset-history
-```
+\`\`\`
+
+**Note:** If you some how lose the password, run this to have it use whatever your current password is set to as the environment variable.
 
 ### Disable Conversation History
 
 To run without using the conversation history:
 
-```bash
+\`\`\`bash
 IvyCLI --no-history "Your prompt here"
-```
+\`\`\`
+
+### Disable Markdown Formatting
+
+To disable markdown formatting in the terminal response output:
+
+\`\`\`bash
+IvyCLI --disable-markdown "Your prompt here"
+\`\`\`
+
+**Note:** If you set `"enable_markdown": false` in `~/.config/ivycli/config.json` you will not need to avoid having the `--disable-markdown` flag specified in the CLI everytime.
 
 ## Encryption of Conversation History
 
-IvyCLI encrypts your conversation history using AES-256-GCM with a passphrase-derived key. The passphrase is provided via the `IVYCLI_PASSPHRASE` environment variable.
+IvyCLI encrypts your conversation history using AES-256-GCM with a passphrase-derived key. The passphrase is provided via the `IVYCLI_PASSPHRASE` environment variable. This ensures your conversation history remains secure.
+
+## Environment Variables
+
+If not already set during first-time setup, you can manually set the required environment variables:
+
+- **OpenAI API Key**:
+
+  \`\`\`bash
+  export OPENAI_API_KEY="your_openai_api_key"
+  \`\`\`
+
+- **Passphrase for Encryption**:
+
+  \`\`\`bash
+  export IVYCLI_PASSPHRASE="your_secure_passphrase"
+  \`\`\`
+
+Consider adding these to your shell profile (`~/.bashrc` or `~/.zshrc`) for persistence:
+
+\`\`\`bash
+# Add these lines to your shell profile
+echo 'export OPENAI_API_KEY="your_openai_api_key"' >> ~/.bashrc
+echo 'export IVYCLI_PASSPHRASE="your_secure_passphrase"' >> ~/.bashrc
+\`\`\`
+
+To make the changes active, run:
+
+\`\`\`bash
+source ~/.bashrc
+\`\`\`

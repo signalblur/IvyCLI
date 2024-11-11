@@ -18,51 +18,54 @@ import (
 const openAIURL = "https://api.openai.com/v1/chat/completions"
 
 func main() {
-	configFlag := flag.String("config", "", "Path to configuration file")
 	noMarkdownFlag := flag.Bool("disable-markdown", false, "Disable markdown formatting")
 	resetHistoryFlag := flag.Bool("reset-history", false, "Reset conversation history")
 	noHistoryFlag := flag.Bool("no-history", false, "Disable conversation history")
+	replFlag := flag.Bool("repl", false, "Enter REPL mode for interactive conversation")
 	timeoutFlag := flag.Int("timeout", 30, "HTTP request timeout in seconds")
 	flag.Parse()
 
-	apiKey := os.Getenv("OPENAI_API_KEY")
-	if apiKey == "" {
-		fmt.Fprintln(os.Stderr, "Error: OPENAI_API_KEY must be set via environment variables.")
+	usr, err := user.Current()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "Error getting current user:", err)
 		os.Exit(1)
 	}
+	configPath := filepath.Join(usr.HomeDir, ".config", "ivycli", "config.json")
+	configDir := filepath.Dir(configPath)
 
-	passphrase := os.Getenv("IVYCLI_PASSPHRASE")
-	if passphrase == "" {
-		fmt.Fprintln(os.Stderr, "Error: IVYCLI_PASSPHRASE must be set via environment variables.")
-		os.Exit(1)
-	}
-
-	if *configFlag == "" {
-		*configFlag = os.Getenv("IVYCLI_CONFIG_PATH")
-	}
-	if *configFlag == "" {
-		usr, err := user.Current()
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "Error getting current user:", err)
-			os.Exit(1)
-		}
-		*configFlag = filepath.Join(usr.HomeDir, ".config", "ivycli", "config.json")
-	}
-
-	if _, err := os.Stat(*configFlag); os.IsNotExist(err) {
-		err = firstTimeSetup(*configFlag)
+	// Check if ~/.config/ivycli/ directory exists
+	_, err = os.Stat(configDir)
+	if os.IsNotExist(err) {
+		// Run first-time setup
+		err = firstTimeSetup(configPath)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "Error during first-time setup:", err)
 			os.Exit(1)
 		}
 	}
 
+	// Read API key and passphrase from environment variables
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	passphrase := os.Getenv("IVYCLI_PASSPHRASE")
+	if apiKey == "" || passphrase == "" {
+		// Prompt the user to enter them, write to shell profile, set them in current process
+		err = setupEnvironmentVariables()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "Error setting up environment variables:", err)
+			os.Exit(1)
+		}
+		// Re-read the environment variables
+		apiKey = os.Getenv("OPENAI_API_KEY")
+		passphrase = os.Getenv("IVYCLI_PASSPHRASE")
+	}
+
+	// Load configuration from config file
 	var model string
 	var systemPrompt string
 	var maxHistorySize int
 	var enableMarkdown bool
 
-	configData, err := os.ReadFile(*configFlag)
+	configData, err := os.ReadFile(configPath)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error reading config file:", err)
 		os.Exit(1)
@@ -80,6 +83,9 @@ func main() {
 	}
 	if val, ok := config["system_prompt"].(string); ok {
 		systemPrompt = val
+	} else {
+		// Set default system prompt
+		systemPrompt = "You are a technical assistant. Provide concise, accurate answers to technical questions, assuming the user has a strong background in technology. Focus on brevity and clarity."
 	}
 	if val, ok := config["max_history_size"].(float64); ok {
 		maxHistorySize = int(val)
@@ -106,6 +112,11 @@ func main() {
 		os.Exit(0)
 	}
 
+	if *replFlag {
+		runREPL(apiKey, passphrase, model, systemPrompt, maxHistorySize, enableMarkdown, *noHistoryFlag, *timeoutFlag)
+		os.Exit(0)
+	}
+
 	var prompt string
 	if flag.NArg() == 0 {
 		stat, _ := os.Stdin.Stat()
@@ -128,15 +139,14 @@ func main() {
 		prompt = strings.Join(flag.Args(), " ")
 	}
 
+	// Initialize messages
 	var messages []map[string]string
-
 	if systemPrompt != "" {
 		messages = append(messages, map[string]string{
 			"role":    "system",
 			"content": systemPrompt,
 		})
 	}
-
 	if !*noHistoryFlag {
 		historyMessages, err := loadConversationHistory(passphrase)
 		if err != nil {
@@ -148,96 +158,11 @@ func main() {
 		}
 	}
 
-	messages = append(messages, map[string]string{
-		"role":    "user",
-		"content": prompt,
-	})
-
-	requestBody := map[string]interface{}{
-		"model":    model,
-		"messages": messages,
-	}
-
-	requestData, err := json.Marshal(requestBody)
+	err = handlePrompt(prompt, &messages, apiKey, passphrase, model, maxHistorySize, enableMarkdown, *noHistoryFlag, *timeoutFlag)
 	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating request:", err)
+		fmt.Fprintln(os.Stderr, "Error handling prompt:", err)
 		os.Exit(1)
 	}
-
-	req, err := http.NewRequest("POST", openAIURL, bytes.NewBuffer(requestData))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error creating HTTP request:", err)
-		os.Exit(1)
-	}
-
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
-
-	client := &http.Client{
-		Timeout: time.Duration(*timeoutFlag) * time.Second,
-	}
-
-	resp, err := client.Do(req)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error sending request:", err)
-		os.Exit(1)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		var errorResponse map[string]interface{}
-		json.NewDecoder(resp.Body).Decode(&errorResponse)
-		if errMsg, ok := errorResponse["error"].(map[string]interface{}); ok {
-			fmt.Fprintf(os.Stderr, "Error: %s\n", errMsg["message"])
-		} else {
-			fmt.Fprintf(os.Stderr, "Error: Received non-200 response status: %s\n", resp.Status)
-		}
-		os.Exit(1)
-	}
-
-	var responseBody map[string]interface{}
-	err = json.NewDecoder(resp.Body).Decode(&responseBody)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "Error decoding response:", err)
-		os.Exit(1)
-	}
-
-	if choices, ok := responseBody["choices"].([]interface{}); ok && len(choices) > 0 {
-		if message, ok := choices[0].(map[string]interface{})["message"].(map[string]interface{}); ok {
-			content := strings.TrimSpace(message["content"].(string))
-
-			if enableMarkdown {
-				printWithMarkdown(content)
-			} else {
-				fmt.Println(content)
-			}
-
-			if !*noHistoryFlag {
-				messages = append(messages, map[string]string{
-					"role":    "assistant",
-					"content": content,
-				})
-				var historyMessages []map[string]string
-				for _, msg := range messages {
-					if msg["role"] != "system" {
-						historyMessages = append(historyMessages, msg)
-					}
-				}
-				if len(historyMessages) > maxHistorySize*2 {
-					historyMessages = historyMessages[len(historyMessages)-maxHistorySize*2:]
-				}
-				err = saveConversationHistory(historyMessages, passphrase)
-				if err != nil {
-					fmt.Fprintln(os.Stderr, "Error saving conversation history:", err)
-				}
-			}
-
-			os.Exit(0)
-		}
-	}
-
-	fmt.Fprintln(os.Stderr, "Error: Unexpected response format.")
-	os.Exit(1)
 }
 
 func firstTimeSetup(configPath string) error {
@@ -261,6 +186,10 @@ func firstTimeSetup(configPath string) error {
 		return err
 	}
 	systemPrompt = strings.TrimSpace(systemPrompt)
+	if systemPrompt == "" {
+		// Set default system prompt
+		systemPrompt = "You are a technical assistant. Provide concise, accurate answers to technical questions, assuming the user has a strong background in technology. Focus on brevity and clarity."
+	}
 
 	fmt.Print("Enter maximum conversation history size (default 10): ")
 	maxHistorySizeStr, err := reader.ReadString('\n')
@@ -312,5 +241,153 @@ func firstTimeSetup(configPath string) error {
 	}
 
 	fmt.Println("Configuration saved to", configPath)
+
+	// After first-time setup, prompt for API key and passphrase if not set
+	apiKey := os.Getenv("OPENAI_API_KEY")
+	passphrase := os.Getenv("IVYCLI_PASSPHRASE")
+	if apiKey == "" || passphrase == "" {
+		err = setupEnvironmentVariables()
+		if err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+func setupEnvironmentVariables() error {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Print("Enter your OpenAI API Key: ")
+	apiKey, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	apiKey = strings.TrimSpace(apiKey)
+
+	fmt.Print("Enter a passphrase for encrypting conversation history: ")
+	passphrase, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	passphrase = strings.TrimSpace(passphrase)
+
+	// Set environment variables in the current process
+	os.Setenv("OPENAI_API_KEY", apiKey)
+	os.Setenv("IVYCLI_PASSPHRASE", passphrase)
+
+	// Write environment variables to shell profile
+	shell := os.Getenv("SHELL")
+	var profilePath string
+	if strings.Contains(shell, "bash") {
+		profilePath = filepath.Join(os.Getenv("HOME"), ".bashrc")
+	} else if strings.Contains(shell, "zsh") {
+		profilePath = filepath.Join(os.Getenv("HOME"), ".zshrc")
+	} else {
+		profilePath = filepath.Join(os.Getenv("HOME"), ".profile")
+	}
+
+	envVars := fmt.Sprintf("\nexport OPENAI_API_KEY=\"%s\"\nexport IVYCLI_PASSPHRASE=\"%s\"\n", apiKey, passphrase)
+
+	f, err := os.OpenFile(profilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(envVars)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Environment variables added to %s. Please restart your terminal or source your profile.\n", profilePath)
+
+	return nil
+}
+
+func handlePrompt(prompt string, messages *[]map[string]string, apiKey, passphrase, model string, maxHistorySize int, enableMarkdown, noHistory bool, timeout int) error {
+	*messages = append(*messages, map[string]string{
+		"role":    "user",
+		"content": prompt,
+	})
+
+	requestBody := map[string]interface{}{
+		"model":    model,
+		"messages": *messages,
+	}
+
+	requestData, err := json.Marshal(requestBody)
+	if err != nil {
+		return fmt.Errorf("error creating request: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", openAIURL, bytes.NewBuffer(requestData))
+	if err != nil {
+		return fmt.Errorf("error creating HTTP request: %v", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+apiKey)
+
+	client := &http.Client{
+		Timeout: time.Duration(timeout) * time.Second,
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("error sending request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var errorResponse map[string]interface{}
+		json.NewDecoder(resp.Body).Decode(&errorResponse)
+		if errMsg, ok := errorResponse["error"].(map[string]interface{}); ok {
+			return fmt.Errorf("error: %s", errMsg["message"])
+		}
+		return fmt.Errorf("error: received non-200 response status: %s", resp.Status)
+	}
+
+	var responseBody map[string]interface{}
+	err = json.NewDecoder(resp.Body).Decode(&responseBody)
+	if err != nil {
+		return fmt.Errorf("error decoding response: %v", err)
+	}
+
+	if choices, ok := responseBody["choices"].([]interface{}); ok && len(choices) > 0 {
+		if message, ok := choices[0].(map[string]interface{})["message"].(map[string]interface{}); ok {
+			content := strings.TrimSpace(message["content"].(string))
+
+			if enableMarkdown {
+				printWithMarkdown(content)
+			} else {
+				fmt.Println(content)
+			}
+
+			*messages = append(*messages, map[string]string{
+				"role":    "assistant",
+				"content": content,
+			})
+
+			if !noHistory {
+				var historyMessages []map[string]string
+				for _, msg := range *messages {
+					if msg["role"] != "system" {
+						historyMessages = append(historyMessages, msg)
+					}
+				}
+				if len(historyMessages) > maxHistorySize*2 {
+					historyMessages = historyMessages[len(historyMessages)-maxHistorySize*2:]
+				}
+				err = saveConversationHistory(historyMessages, passphrase)
+				if err != nil {
+					fmt.Fprintln(os.Stderr, "Error saving conversation history:", err)
+				}
+			}
+
+			return nil
+		}
+	}
+
+	return fmt.Errorf("error: unexpected response format")
 }
