@@ -18,7 +18,7 @@ IvyCLI is a command-line tool for interacting with OpenAI's GPT models directly 
 
 </div>
 
-<img width="1512" alt="ivy-cli-example" src="https://github.com/user-attachments/assets/5487f124-91d2-49f2-9cc9-24de80784a92">
+<img width="1512" alt="Screenshot 2024-11-11 at 12 40 35 AM" src="https://github.com/user-attachments/assets/04bcf1ef-2281-461a-a7b9-33e61f39054e">
 
 ## Features
 
