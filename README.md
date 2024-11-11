@@ -3,11 +3,15 @@
 IvyCLI is a command-line tool for interacting with OpenAI's GPT models directly from your terminal. It supports encrypted conversation history, markdown formatting for responses, and a REPL mode for interactive use.
 
 <div align="center">
+
 ![Static Badge](https://img.shields.io/badge/mission:-a_simple_and_secure_way_to_interact_with_chatgpt_via_the_cli-purple)
+
 <br />
+
 ![GitHub last commit](https://img.shields.io/github/last-commit/signalblur/ivycli)
 ![GitHub top language](https://img.shields.io/github/languages/top/signalblur/ivycli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](https://opensource.org/licenses/MIT)
+
 </div>
 
 <img width="1512" alt="ivy-cli-example" src="https://github.com/user-attachments/assets/5487f124-91d2-49f2-9cc9-24de80784a92">
