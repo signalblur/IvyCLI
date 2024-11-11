@@ -1,12 +1,12 @@
-<div align="center">
-
-# IvyCLI
-
-  <div align="right">
+<div align="right">
 
   ![IvyCLI-Logo](https://github.com/user-attachments/assets/96d078c7-d841-43a7-ba51-9f6f653228c2)
 
-  </div>
+</div>
+
+<div align="center">
+
+# IvyCLI
 
 IvyCLI is a command-line tool for interacting with OpenAI's GPT models directly from your terminal. It supports encrypted conversation history, markdown formatting for responses, and a REPL mode for interactive use.
 
