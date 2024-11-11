@@ -36,34 +36,34 @@ IvyCLI is a command-line tool for interacting with OpenAI's GPT models directly 
 
 ### Clone the Repository
 
-\`\`\`bash
+```bash
 git clone https://github.com/signalblur/IvyCLI.git
-\`\`\`
+```
 
 ### Install Dependencies
 
 Navigate to the project directory and install the required Go packages:
 
-\`\`\`bash
+```bash
 cd IvyCLI
 go mod tidy
-\`\`\`
+```
 
 ### Build the Binary
 
 Build the `IvyCLI` binary:
 
-\`\`\`bash
+```bash
 CGO_ENABLED=0 go build -o IvyCLI ./cmd
-\`\`\`
+```
 
 ### Move the Binary to Your PATH
 
 Move the binary to a directory included in your `PATH`, such as `/usr/local/bin/`:
 
-\`\`\`bash
+```bash
 sudo mv IvyCLI /usr/local/bin/
-\`\`\`
+```
 
 ## First-Time Setup
 
@@ -80,36 +80,36 @@ On the first run, if the configuration directory `~/.config/ivycli/` does not ex
 
 The configuration file is located at `~/.config/ivycli/config.json`. Example:
 
-\`\`\`json
+```json
 {
     "model": "gpt-4",
     "system_prompt": "You are a technical assistant. Provide concise, accurate answers to technical questions.",
     "max_history_size": 10,
     "enable_markdown": true
 }
-\`\`\`
+```
 
 ## Usage
 
 ### Run IvyCLI
 
-\`\`\`bash
+```bash
 IvyCLI "Your prompt here"
-\`\`\`
+```
 
 ### Example
 
-\`\`\`bash
+```bash
 IvyCLI "Explain the difference between concurrency and parallelism."
-\`\`\`
+```
 
 ### Enter REPL Mode
 
 For interactive conversations, use the REPL mode:
 
-\`\`\`bash
+```bash
 IvyCLI --repl
-\`\`\`
+```
 
 Press `Ctrl+C` to exit REPL mode.
 
@@ -117,9 +117,9 @@ Press `Ctrl+C` to exit REPL mode.
 
 To reset the conversation history:
 
-\`\`\`bash
+```bash
 IvyCLI --reset-history
-\`\`\`
+```
 
 **Note:** If you some how lose the password, run this to have it use whatever your current password is set to as the environment variable.
 
@@ -127,17 +127,17 @@ IvyCLI --reset-history
 
 To run without using the conversation history:
 
-\`\`\`bash
+```bash
 IvyCLI --no-history "Your prompt here"
-\`\`\`
+```
 
 ### Disable Markdown Formatting
 
 To disable markdown formatting in the terminal response output:
 
-\`\`\`bash
+```bash
 IvyCLI --disable-markdown "Your prompt here"
-\`\`\`
+```
 
 **Note:** If you set `"enable_markdown": false` in `~/.config/ivycli/config.json` you will not need to avoid having the `--disable-markdown` flag specified in the CLI everytime.
 
@@ -151,26 +151,26 @@ If not already set during first-time setup, you can manually set the required en
 
 - **OpenAI API Key**:
 
-  \`\`\`bash
+  ```bash
   export OPENAI_API_KEY="your_openai_api_key"
-  \`\`\`
+  ```
 
 - **Passphrase for Encryption**:
 
-  \`\`\`bash
+  ```bash
   export IVYCLI_PASSPHRASE="your_secure_passphrase"
-  \`\`\`
+  ```
 
 Consider adding these to your shell profile (`~/.bashrc` or `~/.zshrc`) for persistence:
 
-\`\`\`bash
+```bash
 # Add these lines to your shell profile
 echo 'export OPENAI_API_KEY="your_openai_api_key"' >> ~/.bashrc
 echo 'export IVYCLI_PASSPHRASE="your_secure_passphrase"' >> ~/.bashrc
-\`\`\`
+```
 
 To make the changes active, run:
 
-\`\`\`bash
+```bash
 source ~/.bashrc
-\`\`\`
+```
