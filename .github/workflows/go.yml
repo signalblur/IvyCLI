@@ -8,6 +8,9 @@ on:
   pull_request:
     branches: [ "main" ]
 
+permissions:
+  contents: write # Grant write permissions for creating releases
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -24,7 +27,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.23.3' # Updated Go version to 1.23.3
+          go-version: '1.23.3'
 
       - name: Install dependencies
         run: go mod tidy
@@ -78,7 +81,7 @@ jobs:
           body: |
             ## IvyCLI Release ${{ github.ref_name }}
             Binaries for Linux, macOS, and Windows in x64 and ARM architectures.
-          files: |
+          artifacts: |
             IvyCLI-linux-amd64
             IvyCLI-linux-arm64
             IvyCLI-darwin-amd64
