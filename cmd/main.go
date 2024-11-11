@@ -18,19 +18,44 @@ import (
 const openAIURL = "https://api.openai.com/v1/chat/completions"
 
 func main() {
+	// Define flags
 	noMarkdownFlag := flag.Bool("disable-markdown", false, "Disable markdown formatting")
 	resetHistoryFlag := flag.Bool("reset-history", false, "Reset conversation history")
 	noHistoryFlag := flag.Bool("no-history", false, "Disable conversation history")
 	replFlag := flag.Bool("repl", false, "Enter REPL mode for interactive conversation")
 	timeoutFlag := flag.Int("timeout", 30, "HTTP request timeout in seconds")
-	flag.Parse()
+	helpFlag := flag.Bool("help", false, "Display help information")
 
+	// Get user information and paths
 	usr, err := user.Current()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "Error getting current user:", err)
 		os.Exit(1)
 	}
 	configPath := filepath.Join(usr.HomeDir, ".config", "ivycli", "config.json")
+
+	// Set custom usage function for help
+	flag.Usage = func() {
+		fmt.Fprintf(os.Stderr, "Usage of %s:\n", os.Args[0])
+		fmt.Fprintln(os.Stderr, "  [options] [prompt]")
+		fmt.Fprintln(os.Stderr, "\nOptions:")
+		flag.PrintDefaults()
+		fmt.Fprintln(os.Stderr, "\nConfiguration file location:")
+		fmt.Fprintf(os.Stderr, "  %s\n", configPath)
+		fmt.Fprintln(os.Stderr, "Conversation history file location:")
+		historyFilePath := getHistoryFilePath()
+		fmt.Fprintf(os.Stderr, "  %s\n", historyFilePath)
+	}
+
+	// Parse flags
+	flag.Parse()
+
+	// Display help and exit if help flag is set
+	if *helpFlag {
+		flag.Usage()
+		os.Exit(0)
+	}
+
 	configDir := filepath.Dir(configPath)
 
 	// Check if ~/.config/ivycli/ directory exists
@@ -42,6 +67,8 @@ func main() {
 			fmt.Fprintln(os.Stderr, "Error during first-time setup:", err)
 			os.Exit(1)
 		}
+		// Exit after setup to prevent "No prompt provided" error
+		os.Exit(0)
 	}
 
 	// Read API key and passphrase from environment variables
@@ -242,16 +269,36 @@ func firstTimeSetup(configPath string) error {
 
 	fmt.Println("Configuration saved to", configPath)
 
-	// After first-time setup, prompt for API key and passphrase if not set
-	apiKey := os.Getenv("OPENAI_API_KEY")
-	passphrase := os.Getenv("IVYCLI_PASSPHRASE")
-	if apiKey == "" || passphrase == "" {
-		err = setupEnvironmentVariables()
+	// Prompt for API key and passphrase (always prompt and overwrite)
+	err = setupEnvironmentVariables()
+	if err != nil {
+		return err
+	}
+
+	// Prompt to create shell alias
+	fmt.Print("Would you like to create a shell alias for easier use? (yes/no, default yes): ")
+	aliasResponse, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	aliasResponse = strings.TrimSpace(strings.ToLower(aliasResponse))
+	if aliasResponse == "" || aliasResponse == "yes" || aliasResponse == "y" {
+		fmt.Print("Enter the alias name you would like to use (default 'sgpt'): ")
+		aliasName, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+		aliasName = strings.TrimSpace(aliasName)
+		if aliasName == "" {
+			aliasName = "sgpt"
+		}
+		err = setupShellAlias(aliasName)
 		if err != nil {
 			return err
 		}
 	}
 
+	fmt.Println("First-time setup is complete. Please restart your terminal or source your profile to apply changes.")
 	return nil
 }
 
@@ -300,8 +347,44 @@ func setupEnvironmentVariables() error {
 		return err
 	}
 
-	fmt.Printf("Environment variables added to %s. Please restart your terminal or source your profile.\n", profilePath)
+	fmt.Printf("Environment variables added to %s.\n", profilePath)
+	return nil
+}
 
+func setupShellAlias(aliasName string) error {
+	shell := os.Getenv("SHELL")
+	var profilePath string
+	if strings.Contains(shell, "bash") {
+		profilePath = filepath.Join(os.Getenv("HOME"), ".bashrc")
+	} else if strings.Contains(shell, "zsh") {
+		profilePath = filepath.Join(os.Getenv("HOME"), ".zshrc")
+	} else {
+		profilePath = filepath.Join(os.Getenv("HOME"), ".profile")
+	}
+
+	aliasFunction := fmt.Sprintf(`
+%s() {
+  local args=()
+  while [[ "$1" == -* ]]; do
+    args+=("$1")
+    shift
+  done
+  printf '%%s\n' "$*" | IvyCLI "${args[@]}"
+}
+`, aliasName)
+
+	f, err := os.OpenFile(profilePath, os.O_APPEND|os.O_WRONLY|os.O_CREATE, 0600)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = f.WriteString(aliasFunction)
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Alias '%s' added to %s.\n", aliasName, profilePath)
 	return nil
 }
 
