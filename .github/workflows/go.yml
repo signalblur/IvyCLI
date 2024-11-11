@@ -77,9 +77,9 @@ jobs:
         uses: ncipollo/release-action@v1
         with:
           tag: ${{ github.ref_name }}
-          name: IvyCLI ${{ github.ref_name }}
+          name: IvyCLI Binary
           body: |
-            ## IvyCLI Release ${{ github.ref_name }}
+            ## IvyCLI Release - ${{ github.ref_name }} branch
             Binaries for Linux, macOS, and Windows in x64 and ARM architectures.
           artifacts: |
             IvyCLI-linux-amd64
